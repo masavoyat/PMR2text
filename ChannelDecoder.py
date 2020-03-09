@@ -34,7 +34,10 @@ class ChannelDecoder:
         self._queue = queue.Queue(10)
         # Build the filter 1KHz transition band to 40dB attenuation
         numtaps, beta = signal.kaiserord(40, 1/250)
-        taps = signal.firwin(numtaps, 1/250, window=('kaiser', beta), scale=False, nyq=0.5*fs)
+        taps = signal.firwin(numtaps, 1/250,
+                             window=('kaiser', beta),
+                             scale=False,
+                             nyq=0.5*radio_recevier.sample_rate)
         self._filter = FIRdecimator.FIRdecimator(taps, 16)
         self._run.set()
         self._thread.start()

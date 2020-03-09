@@ -16,9 +16,10 @@ class FIRdecimator:
         
     def filt(self, data):
         # Filter
-        x = np.concatenate(self.x, data)
+        x = np.concatenate((self.x, data))
         data_filt = np.convolve(x, self.h, mode='valid')
         self.x = x[-len(self.h):]
         # decimate
         data_out = data_filt[self.index::self.decim]
-        self.index = self.index + (len(data_out)+1)*self.decim - len(data)
+        self.index = self.index + len(data_out)*self.decim - len(data)
+        return data_out
