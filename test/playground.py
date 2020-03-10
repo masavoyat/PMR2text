@@ -5,7 +5,7 @@ Created on Wed Mar  4 17:44:41 2020
 @author: masavoyat
 """
 import sys
-if not ".." in sys.path:
+if ".." not in sys.path:
     sys.path.append("..")
 import wave
 import struct
@@ -13,7 +13,6 @@ import numpy as np
 import FIRdecimator
 import FMdemodulator
 import Squelch
-import numpy as np
 from scipy import signal
 from matplotlib import pyplot as plt
 import sounddevice as sd
