@@ -9,19 +9,14 @@ import numpy as np
 
 class FMdemodulator:
     
-    def __init__(self, dt):
-        self.z1 = 0+0j
-        self.fs = 1/dt
+    def __init__(self, fs, max_deviation):
+        self.z = 0+0j
+        self.gain = fs/(2*np.pi*max_deviation)
         
-    def filt(self, data):
-        # w = 2*fs*IM((z1-z2)*(z1+z2).conjugate())/((z1+z2)*(z1+z2).conjugate())
-        out = list()
-        for z0 in data:
-            m = z0 - self.z1
-            p = z0 + self.z1
-            projection = (m*p.conjugate()).imag
-            norm2 = (p*p.conjugate()).real
-            w = 2*self.fs*projection/norm2
-            out.append(w)
-            self.z1 = z0
+    def process(self, data):
+        # w = gain * np.angle(z0*np.conj(z1))
+        z = np.concatenate(([self.z], data))
+        w = self.gain * np.angle(z[1:]*np.conj(z[:-1]))
+        self.z = z[-1]
+        return w
             

@@ -10,11 +10,11 @@ class FIRdecimator:
     
     def __init__(self, h, decim):
         self.h = np.array(h)
-        self.x = np.zeros(len(h))
+        self.x = np.zeros(len(h)-1)
         self.decim = decim
         self.index = 0
         
-    def filt(self, data):
+    def process(self, data):
         # Filter
         x = np.concatenate((self.x, data))
         data_filt = np.convolve(x, self.h, mode='valid')

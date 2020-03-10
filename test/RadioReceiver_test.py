@@ -4,7 +4,9 @@ Created on Thu Mar  5 07:11:17 2020
 
 @author: masavoyat
 """
-
+import sys
+if not ".." in sys.path:
+    sys.path.append("..")
 import RadioReceiver
 import queue
 import time
