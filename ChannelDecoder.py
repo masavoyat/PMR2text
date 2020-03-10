@@ -13,6 +13,7 @@ import FMdemodulator
 import Squelch
 import numpy as np
 from scipy import signal
+import sounddevice as sd
 
 class ChannelDecoder:
     """ PMR446 channel decoder.
@@ -33,19 +34,12 @@ class ChannelDecoder:
         self._run = threading.Event()
         self._radio_recevier = radio_recevier
         self._channel = channel
-        self._queue = queue.Queue(10)
-        # Build the filter 1KHz transition band to 40dB attenuation
-        numtaps, beta = signal.kaiserord(40, 1/250)
-        taps = signal.firwin(numtaps, 1/250,
-                             window=('kaiser', beta),
-                             scale=False,
-                             nyq=0.5*radio_recevier.sample_rate)
-        self._filter = FIRdecimator.FIRdecimator(taps, 16)
+        self._queue = queue.Queue(100)
         self._run.set()
         self._thread.start()
         
     def _main_loop(self):
-        n = 80*16
+        n = 80*2048
         channel_freq = 446e6 + 6.25e3 + 12.5e3*(self._channel-1)
         lo_freq = channel_freq - self._radio_recevier.center_freq
         samp_rate = self._radio_recevier.sample_rate
@@ -54,7 +48,8 @@ class ChannelDecoder:
         self._radio_recevier.registerQueue(self._queue)
         squelch = Squelch.Squelch(-10)
         # Channel signal filtering (baseband) before demodulation (low pass)
-        numtaps_demod, beta_demod = signal.kaiserord(40, 1/(250*0.5))
+        numtaps_demod, beta_demod = signal.kaiserord(40, 2/(250*0.5))
+        print(numtaps_demod)
         taps_demod = signal.firwin(numtaps_demod, (6.25-1)*1e3,
                              window=('kaiser', beta_demod),
                              scale=True,
@@ -63,16 +58,21 @@ class ChannelDecoder:
         # Demodulation is at samp_rate/4
         demod = FMdemodulator.FMdemodulator(samp_rate/4, 5e3)
         # Filter for audio signal (band pass)
-        numtaps_audio, beta_audio = signal.kaiserord(40, 0.01/(62.5*0.5))
-        taps_audio = signal.firwin(numtaps_audio, [10, (3.125-0.5)*1e3],
+        numtaps_audio, beta_audio = signal.kaiserord(40, 0.1/(62.5*0.5))
+        print(numtaps_audio)
+#        taps_audio = signal.firwin(numtaps_audio, [10, (3.125-0.5)*1e3],
+#                             window=('kaiser', beta_audio),
+#                             scale=True, pass_zero=False,
+#                             fs=samp_rate/4)
+        taps_audio = signal.firwin(numtaps_audio, (3.125-0.5)*1e3,
                              window=('kaiser', beta_audio),
-                             scale=True, pass_zero=False,
+                             scale=True,
                              fs=samp_rate/4)
         filt_audio = FIRdecimator.FIRdecimator(taps_audio, 4)
         # Decimation by 4 at demodulation and 4 at audio filtering => 16 total
         while self._run.is_set():
             data = self._queue.get()
-            if not data: # in case the radio return None
+            if data is None: # in case the radio return None
                 self._run.clear()
                 continue
             buffer.extend(data)
@@ -84,6 +84,7 @@ class ChannelDecoder:
                 data_demod = demod.process(data_squelch)
                 data_audio = filt_audio.process(data_demod)
                 del buffer[:n]
+                sd.play(np.array(data_audio), samp_rate/16)
         
         self._radio_recevier.unregisterQueue(self._queue)
         
@@ -91,3 +92,4 @@ class ChannelDecoder:
         if self._run.is_set():
             self._run.clear()
             self._thread.join()
+            
