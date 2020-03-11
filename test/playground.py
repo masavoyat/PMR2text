@@ -17,17 +17,16 @@ from scipy import signal
 from matplotlib import pyplot as plt
 import sounddevice as sd
 
-n = 80*10
 channel = 8
 samp_rate = 250e3
 center_freq = 446.1e6
 channel_freq = 446e6 + 6.25e3 + 12.5e3*(channel-1)
 lo_freq = channel_freq - center_freq
-lo = np.exp(-2*np.pi*1j*lo_freq/samp_rate*np.arange(n))
 buffer = list() # local buffer used for group data processing
 
 squelch = Squelch.Squelch(-10)
 numtaps, beta = signal.kaiserord(40, 1/(250*0.5))
+print(numtaps)
 taps = signal.firwin(numtaps, (6.25-1)*1e3,
                      window=('kaiser', beta),
                      scale=True,
@@ -35,11 +34,14 @@ taps = signal.firwin(numtaps, (6.25-1)*1e3,
 filt_demod = FIRdecimator.FIRdecimator(taps, 4)
 demod = FMdemodulator.FMdemodulator(samp_rate/4, 5e3)
 numtaps_audio, beta_audio = signal.kaiserord(40, 0.01/(62.5*0.5))
+print(numtaps_audio)
 taps_audio = signal.firwin(numtaps_audio, [10, (3.125-0.5)*1e3],
                      window=('kaiser', beta_audio),
                      scale=True, pass_zero=False,
                      fs=samp_rate/4)
 filt_audio = FIRdecimator.FIRdecimator(taps_audio, 4)
+n = (1+(max(numtaps, numtaps_audio)//80))*80
+lo = np.exp(-2*np.pi*1j*lo_freq/samp_rate*np.arange(n))
 
 waveFile = wave.open('radio_test.wav', 'r')
 

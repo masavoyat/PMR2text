@@ -5,6 +5,7 @@ Created on Fri Mar  6 14:43:18 2020
 @author: sam
 """
 import numpy as np
+from scipy import signal
 
 class FIRdecimator:
     
@@ -17,7 +18,7 @@ class FIRdecimator:
     def process(self, data):
         # Filter
         x = np.concatenate((self.x, data))
-        data_filt = np.convolve(x, self.h, mode='valid')
+        data_filt = signal.fftconvolve(x, self.h, mode='valid')
         self.x = x[-len(self.h):]
         # decimate
         data_out = data_filt[self.index::self.decim]
