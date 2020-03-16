@@ -12,11 +12,11 @@ import queue
 import time
 
 
-radio = RadioReceiver.RadioReceiver()
+radio = RadioReceiver.RadioReceiver(buffer_size=16*1024)
 
 q = queue.Queue(10)
 radio.registerQueue(q)
-
+print("queue registered")
 
 try:
     while True:
