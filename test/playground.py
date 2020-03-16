@@ -16,6 +16,8 @@ import Squelch
 from scipy import signal
 from matplotlib import pyplot as plt
 import sounddevice as sd
+import wave
+import struct
 
 channel = 8
 samp_rate = 250e3
@@ -25,9 +27,9 @@ lo_freq = channel_freq - center_freq
 buffer = list() # local buffer used for group data processing
 
 squelch = Squelch.Squelch(-10)
-numtaps, beta = signal.kaiserord(40, 1/(250*0.5))
+numtaps, beta = signal.kaiserord(40, 2.5/(250*0.5))
 print(numtaps)
-taps = signal.firwin(numtaps, (6.25-1)*1e3,
+taps = signal.firwin(numtaps, 5*1e3,
                      window=('kaiser', beta),
                      scale=True,
                      fs=samp_rate)
@@ -48,6 +50,11 @@ waveFile = wave.open('radio_test.wav', 'r')
 length = waveFile.getnframes()
 #length //= 2
 data_out = list()
+wavefile = wave.open("out.wav", "w")
+wavefile.setnchannels(1) # mono
+wavefile.setsampwidth(2)
+wavefile.setframerate(samp_rate/16)
+
 for i in range(length//1024):
     waveData = waveFile.readframes(1024)
     data = np.array(struct.unpack("<2048h", waveData))*1.0
@@ -63,9 +70,12 @@ for i in range(length//1024):
         data_audio = filt_audio.process(data_demod)
         data_out.extend(data_audio)
         del buffer[:n]
+        for d in data_audio:
+            wavefile.writeframesraw(struct.pack('<h', int(d*2**15)))
 
 waveFile.close()
 plt.figure()
+wavefile.close()
 plt.plot(data_out)
 #plt.plot(np.real(data_out))
 #plt.plot(np.imag(data_out))

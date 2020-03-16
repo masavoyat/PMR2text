@@ -10,9 +10,9 @@ if not ".." in sys.path:
 import RadioReceiver
 import ChannelDecoder
 
-
-radio = RadioReceiver.RadioReceiver()
-cd = ChannelDecoder.ChannelDecoder(radio, 8)
+radio = RadioReceiver.RadioReceiver(buffer_size=1023)
+cd8 = ChannelDecoder.ChannelDecoder(radio, 8)
+cd7 = ChannelDecoder.ChannelDecoder(radio, 7)
 
 try:
     while True:
@@ -20,5 +20,6 @@ try:
 except KeyboardInterrupt:
     pass
 
-cd.close()
+cd8.close()
+cd7.close()
 radio.close()

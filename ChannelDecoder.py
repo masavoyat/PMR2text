@@ -13,7 +13,9 @@ import FMdemodulator
 import Squelch
 import numpy as np
 from scipy import signal
+import wave
 import sounddevice as sd
+import struct
 
 class ChannelDecoder:
     """ PMR446 channel decoder.
@@ -21,10 +23,10 @@ class ChannelDecoder:
     and sample_rate is 250KHz."""
     
     def __init__(self, radio_recevier : RadioReceiver, channel):
-        if radio_recevier.center_freq != 446.1e6:
+        if round(radio_recevier.center_freq) != round(446.1e6):
             raise ValueError("RadioRecevier shall have 446.1 MHz center frequency")
             return
-        if radio_recevier.sample_rate != 250e3:
+        if round(radio_recevier.sample_rate) != round(250e3):
             raise ValueError("RadioRecevier shall have 250 KHz sample rate")
             return
         if channel < 1 or channel > 16:
@@ -56,7 +58,7 @@ class ChannelDecoder:
         # Demodulation is at samp_rate/4
         demod = FMdemodulator.FMdemodulator(samp_rate/4, 5e3)
         # Filter for audio signal (band pass)
-        numtaps_audio, beta_audio = signal.kaiserord(40, 0.1/(62.5*0.5))
+        numtaps_audio, beta_audio = signal.kaiserord(40, 0.5/(62.5*0.5))
         print(numtaps_audio)
 #        taps_audio = signal.firwin(numtaps_audio, [10, (3.125-0.5)*1e3],
 #                             window=('kaiser', beta_audio),
@@ -68,9 +70,14 @@ class ChannelDecoder:
                              fs=samp_rate/4)
         filt_audio = FIRdecimator.FIRdecimator(taps_audio, 4)
         # Choose n so that buffer is always bigger than filter kernel
-        n = (1+(max(numtaps_demod, numtaps_audio)//80))*80
+        n = 80*2**14
+#        n = 2*(1+(max(numtaps_demod, numtaps_audio)//80))*80
         lo = np.exp(-2*np.pi*1j*lo_freq/samp_rate*np.arange(n))
         # Decimation by 4 at demodulation and 4 at audio filtering => 16 total
+        wavefile = wave.open("out" + str(self._channel) + ".wav", "w")
+        wavefile.setnchannels(1) # mono
+        wavefile.setsampwidth(2)
+        wavefile.setframerate(samp_rate/16)
         while self._run.is_set():
             data = self._queue.get()
             if data is None: # in case the radio return None
@@ -78,15 +85,17 @@ class ChannelDecoder:
                 continue
             buffer.extend(data)
             # Process data by n samples
-            while len(buffer)>n:
+            while len(buffer) > n:
                 data_mix = buffer[:n]*lo
                 data_filt = filt_demod.process(data_mix)
                 data_squelch = squelch.process(data_filt)
                 data_demod = demod.process(data_squelch)
                 data_audio = filt_audio.process(data_demod)
                 del buffer[:n]
+                for d in data_audio:
+                    wavefile.writeframesraw(struct.pack('<h', int(d*2**15)))
                 sd.play(np.array(data_audio), samp_rate/16)
-        
+        wavefile.close()
         self._radio_recevier.unregisterQueue(self._queue)
         
     def close(self):
